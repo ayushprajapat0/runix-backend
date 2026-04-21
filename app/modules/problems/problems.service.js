@@ -98,7 +98,13 @@ export const getProblemService = async (slug) => {
                            'order_index', tc.order_index
                        )
                    ) FILTER (WHERE tc.id IS NOT NULL AND tc.is_sample = TRUE),
-               '[]') AS sample_test_cases
+               '[]') AS sample_test_cases,
+               COALESCE(
+                   (SELECT json_object_agg(l.slug, pt_tmpl.starter_code)
+                    FROM problem_templates pt_tmpl
+                    JOIN languages l ON pt_tmpl.language_id = l.id
+                    WHERE pt_tmpl.problem_id = p.id),
+               '{}'::json) AS starter_code
         FROM problems p
         LEFT JOIN problem_tags pt ON p.id = pt.problem_id
         LEFT JOIN tags t          ON pt.tag_id = t.id

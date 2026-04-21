@@ -1,14 +1,20 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '../.env' });
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import app from './app.js';
-import client from './configs/db.js';
+import pool from './configs/db.js';
 import redis_client from './configs/redis.js';
 
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
     try {
-        await client.connect();
+        const c = await pool.connect();
+        c.release();
         console.log('PostgreSQL connected');
 
         await redis_client.connect();
@@ -25,14 +31,14 @@ const startServer = async () => {
 
 process.on('SIGINT', async () => {
     console.log('\n Shutting down gracefully...');
-    await client.end();
+    await pool.end();
     await redis_client.quit();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     console.log('\nSIGTERM received. Shutting down...');
-    await client.end();
+    await pool.end();
     await redis_client.quit();
     process.exit(0);
 });
