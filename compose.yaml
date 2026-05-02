@@ -104,4 +104,6 @@ volumes:
 
 networks:
   codeme:
-    driver: bridge
+    # This network must be created once before running either compose:
+    #   docker network create codeme
+    external: true
