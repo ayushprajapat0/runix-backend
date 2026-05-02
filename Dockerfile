@@ -1,17 +1,29 @@
-FROM node:20-alpine
+FROM node:20-alpine AS deps
 
-# Create app directory
 WORKDIR /usr/src/app
 
-# Install app dependencies
-COPY package*.json ./
-RUN npm install --production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
 
-# Bundle app source
+FROM node:20-alpine AS runner
+
+LABEL org.opencontainers.image.title="codeME-backend"
+LABEL org.opencontainers.image.description="codeME API server and code-execution worker"
+
+ENV NODE_ENV=production
+
+WORKDIR /usr/src/app
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+COPY --from=deps /usr/src/app/node_modules ./node_modules
+
 COPY . .
 
-# Expose the API port
+RUN chown -R appuser:appgroup /usr/src/app
+
+USER appuser
+
 EXPOSE 5000
 
-# Start the application
-CMD [ "npm", "start" ]
+CMD ["node", "app/server.js"]

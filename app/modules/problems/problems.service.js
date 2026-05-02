@@ -58,7 +58,6 @@ export const getAllProblemsService = async ({ page = 1, limit = 10, difficulty, 
 
     const listQuery = `
         SELECT p.id, p.title, p.slug, p.difficulty,
-               p.total_submissions, p.total_accepted,
                ${acceptRate},
                ${tagAgg}
         ${baseJoin}${filters}

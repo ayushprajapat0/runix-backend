@@ -1,20 +1,64 @@
 services:
+
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
     ports:
-      - "5000:5000"
+      - "${PORT:-5000}:5000"
     env_file:
       - .env
     environment:
-      # Override the DB and Redis hosts to use the container names
-      - DB_HOST=db
-      - REDIS_HOST=redis
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - codeme
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    command: node app/worker/run.worker.js
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      WORKER_CONCURRENCY: "${WORKER_CONCURRENCY:-4}"
+      SANDBOX_BASE_DIR: /var/judge-sandbox
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - judge_sandbox:/var/judge-sandbox
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - codeme
 
   db:
     image: postgres:15-alpine
@@ -23,26 +67,41 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-1405}
       POSTGRES_DB: ${DB_NAME:-codeme}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-codeme}" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: always
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - codeme
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes --appendfsync everysec
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: always
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - codeme
 
 volumes:
   postgres_data:
+  redis_data:
+  judge_sandbox:
+
+networks:
+  codeme:
+    driver: bridge

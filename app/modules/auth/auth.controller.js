@@ -7,6 +7,10 @@ import {
     refreshUserToken,
     logoutUser,
     getUserById,
+    getUserProfile,
+    updateUserProfile,
+    requestEmailChange,
+    verifyEmailChange,
     AuthError,
 } from './auth.service.js';
 
@@ -135,6 +139,70 @@ export const getMe = async (req, res) => {
     try {
         const user = await getUserById(req.user.id);
         return res.status(200).json({ user });
+    } catch (error) {
+        return handleError(res, error);
+    }
+};
+
+export const getProfile = async (req, res) => {
+    try {
+        const { username } = req.params;
+        if (!username) {
+            return res.status(400).json({ message: 'Username is required' });
+        }
+        const profile = await getUserProfile(username);
+        return res.status(200).json(profile);
+    } catch (error) {
+        return handleError(res, error);
+    }
+};
+
+export const updateProfile = async (req, res) => {
+    try {
+        const { fullName, username } = req.body;
+        if (!fullName && !username) {
+            return res.status(400).json({ message: 'At least one field is required' });
+        }
+        const updated = await updateUserProfile(req.user.id, { fullName, username });
+        return res.status(200).json({
+            message: 'Profile updated successfully',
+            user: {
+                id: updated.id,
+                username: updated.username,
+                email: updated.email,
+                fullName: updated.full_name,
+            },
+        });
+    } catch (error) {
+        return handleError(res, error);
+    }
+};
+
+export const requestEmailUpdate = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: 'New email is required' });
+        await requestEmailChange(req.user.id, email);
+        return res.status(200).json({ message: 'OTP sent to new email address' });
+    } catch (error) {
+        return handleError(res, error);
+    }
+};
+
+export const verifyEmailUpdate = async (req, res) => {
+    try {
+        const { otp } = req.body;
+        if (!otp) return res.status(400).json({ message: 'OTP is required' });
+        const updated = await verifyEmailChange(req.user.id, otp);
+        return res.status(200).json({
+            message: 'Email updated successfully',
+            user: {
+                id: updated.id,
+                username: updated.username,
+                email: updated.email,
+                fullName: updated.full_name,
+            },
+        });
     } catch (error) {
         return handleError(res, error);
     }

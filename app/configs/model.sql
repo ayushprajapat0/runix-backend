@@ -99,8 +99,9 @@ CREATE TABLE problem_templates (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     problem_id    UUID NOT NULL REFERENCES problems(id)  ON DELETE CASCADE,
     language_id   UUID NOT NULL REFERENCES languages(id) ON DELETE CASCADE,
-    starter_code  TEXT NOT NULL,    -- shown in the editor
+    starter_code  TEXT NOT NULL,    -- shown in the editor (method stub only)
     solution_code TEXT,             -- hidden; used by the judge
+    runner_code   TEXT,             -- harness wrapping user code; {{USER_CODE}} is replaced at run-time
     UNIQUE (problem_id, language_id)
 );
 
